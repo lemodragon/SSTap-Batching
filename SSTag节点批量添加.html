@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Socks5 批量管理 proxylist.json</title>
+  <style>
+    body {
+      font-family: "微软雅黑", Arial, sans-serif;
+      background: #f0f4f8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      padding: 32px 36px 24px 36px;
+    }
+    h2 {
+      text-align: center;
+      color: #2d8cf0;
+      margin-bottom: 24px;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 16px;
+      color: #333;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .file-input-wrapper {
+      margin-bottom: 15px;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: "Consolas", "Menlo", "Monaco", monospace;
+      font-size: 14px;
+      resize: vertical;
+    }
+    button {
+      background: #2d8cf0;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 20px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      opacity: 0.85;
+    }
+    button.danger {
+      background: #ed4014;
+    }
+    button.success {
+      background: #19be6b;
+    }
+    button.default {
+      background: #999;
+    }
+    .status {
+      padding: 15px;
+      background: #f8f8f8;
+      border-radius: 4px;
+      margin-top: 15px;
+      min-height: 20px;
+      color: #666;
+    }
+    .hidden {
+      display: none;
+    }
+    .example {
+      font-size: 12px;
+      color: #999;
+      margin-top: 5px;
+      margin-bottom: 10px;
+    }
+    .naming-control {
+      display: flex;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .naming-control input {
+      width: 80px;
+      margin-right: 10px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .naming-control label {
+      font-size: 14px;
+      margin-right: 10px;
+      color: #333;
+    }
+    .naming-control select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    footer {
+      text-align: center; 
+      padding: 8px; 
+      position: relative; 
+      bottom: 0; 
+      width: 100%;
+      margin-top: 30px;
+    }
+    footer p {
+      margin: 5px 0; 
+      display: inline;
+    }
+    footer a {
+      color: green; 
+      text-decoration: none; 
+      margin-left: 10px;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Socks5 批量管理 proxylist.json</h2>
+    
+    <div class="section">
+      <div class="section-title">1. 上传 proxylist.json 文件：</div>
+      <div class="file-input-wrapper">
+        <input type="file" id="fileInput" accept=".json">
+      </div>
+      <div id="uploadStatus" class="status">请先上传 proxylist.json 文件。</div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">2. 批量添加 Socks5 节点（每行: ip|端口|用户名|密码）：</div>
+      <div class="example">例：110.110.110.110|1010|username|password</div>
+      <textarea id="nodesInput" placeholder="每行一个节点，格式：ip|端口|用户名|密码"></textarea>
+      
+      <div class="section-title">批量节点命名设置：</div>
+      <div class="naming-control">
+        <label for="remarksPrefix">备注前缀：</label>
+        <input type="text" id="remarksPrefix" value="node" placeholder="前缀">
+        
+        <label for="startingNumber">起始序号：</label>
+        <input type="number" id="startingNumber" value="1" min="1">
+        
+        <label for="paddingZeros">数字位数：</label>
+        <select id="paddingZeros">
+          <option value="0">不补零</option>
+          <option value="1">1位 (1,2,3...)</option>
+          <option value="2">2位 (01,02,03...)</option>
+          <option value="3">3位 (001,002,003...)</option>
+          <option value="4">4位 (0001,0002,0003...)</option>
+        </select>
+      </div>
+      
+      <button id="batchAddBtn" class="success">批量添加节点</button>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">3. 一键清除全部 Socks5 节点：</div>
+      <button id="clearBtn" class="danger">清除全部节点</button>
+    </div>
+    
+    <div class="section">
+      <button id="downloadBtn" class="default">下载修改后的 proxylist.json</button>
+    </div>
+    
+    <a id="downloadLink" class="hidden"></a>
+  </div>
+  
+  <footer>
+    <p>本工具不存储不上传任何数据，请放心使用</p>
+    <p><a target="_blank" href="https://demo.lvdpub.com" style="font-size: 18px; color: green;">联系作者</a></p>
+  </footer>
+  
+  <script>
+    // 定义变量
+    let configData = { idInUse: -1 }; // 当前配置数据
+    let lastFileName = "proxylist.json";
+    
+    // 获取DOM元素
+    const fileInput = document.getElementById('fileInput');
+    const nodesInput = document.getElementById('nodesInput');
+    const batchAddBtn = document.getElementById('batchAddBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const downloadLink = document.getElementById('downloadLink');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const remarksPrefix = document.getElementById('remarksPrefix');
+    const startingNumber = document.getElementById('startingNumber');
+    const paddingZeros = document.getElementById('paddingZeros');
+    
+    // 解析粘贴的节点信息文本
+    function parseNodesText(text) {
+      if (!text.trim()) return [];
+      
+      const lines = text.trim().split('\n');
+      const nodes = [];
+      
+      const prefix = remarksPrefix.value || '';
+      let startNum = parseInt(startingNumber.value, 10) || 1;
+      const padding = parseInt(paddingZeros.value, 10) || 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split('|');
+        if (parts.length < 4) {
+          alert(`第 ${i+1} 行格式错误，应为：ip|端口|用户名|密码`);
+          return null;
+        }
+        
+        const [server, port, username, password] = parts;
+        
+        // 创建序号，根据需要补零
+        let numStr = startNum.toString();
+        if (padding > 0) {
+          numStr = numStr.padStart(padding, '0');
+        }
+        
+        // 创建备注
+        const remarkText = prefix + numStr;
+        
+        nodes.push({
+          "AdditionalRoute": "",
+          "ConnectedTimes": 0,
+          "Download_traffic": 0,
+          "FailureTimes": 0,
+          "Latency": 0,
+          "Upload_traffic": 0,
+          "charge_type": 0,
+          "enable": true,
+          "group": "Default Group",
+          "iplocation": "",
+          "ipregion": "",
+          "method": "none",
+          "nCountryIndex": 30,
+          "obfs": "plain",
+          "obfsparam": "",
+          "password": password,
+          "protocol": "origin",
+          "protocolparam": "",
+          "remarks": remarkText,
+          "server": server,
+          "server_port": parseInt(port, 10),
+          "server_udp_port": 0,
+          "type": 5,
+          "udp_over_tcp": 0,
+          "username": username
+        });
+        
+        startNum++;
+      }
+      
+      return nodes;
+    }
+    
+    // 更新状态
+    function updateStatus(message) {
+      uploadStatus.textContent = message;
+    }
+    
+    // 批量添加节点
+    batchAddBtn.addEventListener('click', function() {
+      const nodeText = nodesInput.value;
+      const newNodes = parseNodesText(nodeText);
+      
+      if (!newNodes) return; // 解析失败
+      if (newNodes.length === 0) {
+        alert("请输入至少一个节点信息");
+        return;
+      }
+      
+      // 如果已有configs，则追加，否则新建
+      let configs = [];
+      if (configData.configs && Array.isArray(configData.configs)) {
+        configs = configData.configs.concat(newNodes);
+      } else {
+        configs = newNodes;
+      }
+      
+      configData = {
+        configs: configs,
+        idInUse: configs.length > 0 ? configs.length - 1 : -1
+      };
+      
+      updateStatus(`成功添加 ${newNodes.length} 个节点，当前共有 ${configs.length} 个节点。`);
+      nodesInput.value = ''; // 清空输入框
+    });
+    
+    // 一键清空
+    clearBtn.addEventListener('click', function() {
+      if (confirm("确定要清空所有节点吗？")) {
+        configData = { idInUse: -1 };
+        updateStatus("已清空所有节点，当前节点数量: 0");
+      }
+    });
+    
+    // 上传文件
+    fileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      lastFileName = file.name;
+      
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const json = JSON.parse(evt.target.result);
+          
+          // 只保留configs和idInUse字段
+          configData = {};
+          if (Array.isArray(json.configs)) configData.configs = json.configs;
+          if (typeof json.idInUse === "number") configData.idInUse = json.idInUse;
+          else configData.idInUse = (configData.configs && configData.configs.length > 0) ? configData.configs.length - 1 : -1;
+          
+          const nodeCount = configData.configs ? configData.configs.length : 0;
+          updateStatus(`成功加载配置文件，当前节点数量: ${nodeCount}`);
+        } catch (err) {
+          alert("文件格式错误，请上传有效的JSON文件！");
+          configData = { idInUse: -1 };
+          updateStatus("文件解析失败，请重新上传");
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    });
+    
+    // 下载配置文件
+    downloadBtn.addEventListener('click', function() {
+      // 创建Blob对象
+      const blob = new Blob([JSON.stringify(configData, null, 3)], {type: 'application/json'});
+      
+      // 创建URL
+      const url = URL.createObjectURL(blob);
+      
+      // 设置下载链接
+      downloadLink.href = url;
+      downloadLink.download = lastFileName;
+      
+      // 触发点击
+      downloadLink.click();
+      
+      // 释放URL对象
+      setTimeout(function() {
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      updateStatus("配置文件已下载");
+    });
+    
+    // 页面加载
+    window.onload = function() {
+      updateStatus("请先上传 proxylist.json 文件，或直接添加节点");
+    };
+  </script>
+</body>
+</html>
