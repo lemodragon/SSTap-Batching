@@ -58,7 +58,7 @@
 本工具完全在浏览器本地运行，不会上传、存储或共享您的任何数据。
 
 ## 许可证
-Apache License 2.0
+[Apache License 2.0](https://github.com/lemodragon/SSTap-Batching/blob/main/LICENSE)
 
 ## 联系方式
 
